@@ -1,0 +1,119 @@
+'use client'
+
+import { useState } from 'react'
+import { Plus, Minus, Navigation } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+
+// Simulated NSW rail system data
+const nswStations = [
+  { name: 'Central', lat: -33.8832, lon: 151.2067 },
+  { name: 'Parramatta', lat: -33.8150, lon: 151.0011 },
+  { name: 'Penrith', lat: -33.7511, lon: 150.6942 },
+  { name: 'Hornsby', lat: -33.7035, lon: 151.0982 },
+  { name: 'Cronulla', lat: -34.0581, lon: 151.1543 },
+  { name: 'Bondi Junction', lat: -33.8916, lon: 151.2501 },
+]
+
+export default function NSWRailMidpointFinder() {
+  const [locations, setLocations] = useState(['', ''])
+  const [midpoint, setMidpoint] = useState(null)
+  const [directions, setDirections] = useState([])
+
+  const addLocation = () => {
+    setLocations([...locations, ''])
+  }
+
+  const removeLocation = (index) => {
+    const newLocations = locations.filter((_, i) => i !== index)
+    setLocations(newLocations.length >= 2 ? newLocations : ['', ''])
+  }
+
+  const handleLocationChange = (index, value) => {
+    const newLocations = [...locations]
+    newLocations[index] = value
+    setLocations(newLocations)
+  }
+
+  const calculateMidpoint = () => {
+    const validLocations = locations.filter(loc => 
+      nswStations.some(station => station.name.toLowerCase() === loc.toLowerCase())
+    )
+
+    if (validLocations.length < 2) {
+      alert('Please enter at least two valid NSW rail stations.')
+      return
+    }
+
+    const stationCoords = validLocations.map(loc => 
+      nswStations.find(station => station.name.toLowerCase() === loc.toLowerCase())
+    )
+
+    const midLat = stationCoords.reduce((sum, station) => sum + station.lat, 0) / stationCoords.length
+    const midLon = stationCoords.reduce((sum, station) => sum + station.lon, 0) / stationCoords.length
+
+    const midpointStation = nswStations.reduce((closest, station) => {
+      const distance = Math.sqrt(
+        Math.pow(station.lat - midLat, 2) + Math.pow(station.lon - midLon, 2)
+      )
+      return distance < closest.distance ? { station, distance } : closest
+    }, { station: null, distance: Infinity }).station
+
+    setMidpoint(midpointStation)
+
+    const newDirections = validLocations.map(loc => {
+      const start = nswStations.find(station => station.name.toLowerCase() === loc.toLowerCase())
+      return `From ${start.name} to ${midpointStation.name}: Follow the ${start.name === 'Central' ? 'Western' : 'City'} line.`
+    })
+
+    setDirections(newDirections)
+  }
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>NSW Rail Midpoint Finder</CardTitle>
+        <CardDescription>Find a meeting point between multiple NSW rail stations</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {locations.map((location, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <Input
+                type="text"
+                placeholder={`Enter station ${index + 1}`}
+                value={location}
+                onChange={(e) => handleLocationChange(index, e.target.value)}
+              />
+              {index >= 2 && (
+                <Button variant="outline" size="icon" onClick={() => removeLocation(index)}>
+                  <Minus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+          <Button onClick={addLocation}>
+            <Plus className="h-4 w-4 mr-2" /> Add Location
+          </Button>
+        </div>
+      </CardContent>
+      <CardFooter className="flex flex-col items-start space-y-4">
+        <Button onClick={calculateMidpoint}>Find Midpoint</Button>
+        {midpoint && (
+          <div>
+            <h3 className="text-lg font-semibold">Midpoint Station: {midpoint.name}</h3>
+            <ul className="list-disc list-inside mt-2">
+              {directions.map((direction, index) => (
+                <li key={index} className="flex items-center">
+                  <Navigation className="h-4 w-4 mr-2" />
+                  {direction}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardFooter>
+    </Card>
+  )
+}
